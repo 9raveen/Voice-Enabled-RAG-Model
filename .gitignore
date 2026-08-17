@@ -1,0 +1,18 @@
+# environment
+.env
+venv/
+__pycache__/
+*.pyc
+
+# data (don't commit large dataset files)
+data/
+*.parquet
+*.jsonl
+
+# vector DB local storage
+qdrant_storage/
+*.faiss
+
+# OS/editor
+.DS_Store
+.vscode/
