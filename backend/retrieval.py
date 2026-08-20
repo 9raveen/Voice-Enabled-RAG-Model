@@ -34,16 +34,21 @@ def _get_client():
 
 
 def retrieve(query: str, top_k: int = TOP_K) -> RetrievalResult:
-    model = _get_model()
-    client = _get_client()
+    try:
+        model = _get_model()
+        client = _get_client()
 
-    query_vec = model.encode(["query: " + query], normalize_embeddings=True)[0]
+        query_vec = model.encode(["query: " + query], normalize_embeddings=True)[0]
 
-    results = client.query_points(
-        collection_name=COLLECTION_NAME,
-        query=query_vec.tolist(),
-        limit=top_k,
-    )
+        results = client.query_points(
+            collection_name=COLLECTION_NAME,
+            query=query_vec.tolist(),
+            limit=top_k,
+        )
+    except Exception as e:
+        # Retrieval failure (Qdrant down, embedding error, etc.) - fail
+        # safe with an empty, non-confident result rather than crashing.
+        return RetrievalResult(query=query, chunks=[], top_score=0.0, confident=False)
 
     chunks = [
         RetrievedChunk(
