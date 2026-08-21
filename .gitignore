@@ -11,6 +11,7 @@ data/
 
 # vector DB local storage
 qdrant_storage/
+qdrant_data/
 *.faiss
 
 # OS/editor

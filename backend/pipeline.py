@@ -15,29 +15,41 @@ from generation import generate_answer
 from stt import transcribe
 
 
-def run_pipeline_from_audio(audio_path: str) -> PipelineResponse:
+LANGUAGE_TO_STT_CODE = {
+    "hi": "hi-IN",
+    "en": "en-IN",
+}
+
+
+def run_pipeline_from_audio(audio_path: str, language: str = "hi") -> PipelineResponse:
     """Voice entry point: STT -> text pipeline."""
     timings = {}
-    transcript, stt_ms, stt_error = transcribe(audio_path)
+    stt_code = LANGUAGE_TO_STT_CODE.get(language, "hi-IN")
+    transcript, stt_ms, stt_error = transcribe(audio_path, language_code=stt_code)
     timings["stt_ms"] = stt_ms
 
     if stt_error or not transcript:
+        stt_err_msg = (
+            "Sorry, there was an issue understanding the audio."
+            if language == "en"
+            else "माफ़ कीजिए, आवाज़ को समझने में समस्या हुई।"
+        )
         return PipelineResponse(
             query="",
             status=AnswerStatus.ERROR,
-            answer="माफ़ कीजिए, आवाज़ को समझने में समस्या हुई।",
+            answer=stt_err_msg,
             sources=[],
             latency_ms=timings,
         )
 
-    result = run_pipeline(transcript)
+    result = run_pipeline(transcript, language=language)
     # merge STT timing into the text pipeline's timing breakdown
     result.latency_ms = {**timings, **result.latency_ms}
     result.latency_ms["total_ms"] = stt_ms + result.latency_ms.get("total_ms", 0)
     return result
 
 
-def run_pipeline(query: str) -> PipelineResponse:
+def run_pipeline(query: str, language: str = "hi") -> PipelineResponse:
     timings = {}
     t_start = time.time()
 
@@ -46,7 +58,7 @@ def run_pipeline(query: str) -> PipelineResponse:
     is_valid, reason = validate_input(query)
     timings["validation_ms"] = (time.time() - t0) * 1000
     if not is_valid:
-        rejected = rejection_response(query, reason)
+        rejected = rejection_response(query, reason, language=language)
         return PipelineResponse(
             query=query, status=rejected.status, answer=rejected.answer,
             sources=[], latency_ms=timings,
@@ -57,7 +69,7 @@ def run_pipeline(query: str) -> PipelineResponse:
     is_safe, safety_reason = check_unsafe_content(query)
     timings["safety_check_ms"] = (time.time() - t0) * 1000
     if not is_safe:
-        rejected = rejection_response(query, safety_reason)
+        rejected = rejection_response(query, safety_reason, language=language)
         return PipelineResponse(
             query=query, status=rejected.status, answer=rejected.answer,
             sources=[], latency_ms=timings,
@@ -65,12 +77,12 @@ def run_pipeline(query: str) -> PipelineResponse:
 
     # 3. Retrieval (with confidence gating and failure recovery built in)
     t0 = time.time()
-    retrieval_result = retrieve(query)
+    retrieval_result = retrieve(query, language=language)
     timings["retrieval_ms"] = (time.time() - t0) * 1000
 
     # 4. Generation (handles low-confidence retrieval internally too)
     t0 = time.time()
-    generated = generate_answer(retrieval_result)
+    generated = generate_answer(retrieval_result, language=language)
     timings["generation_ms"] = (time.time() - t0) * 1000
 
     # 5. Grounding check - only meaningful if we actually answered
@@ -80,12 +92,16 @@ def run_pipeline(query: str) -> PipelineResponse:
         t0 = time.time()
         grounded, grounding_score = check_grounding(generated.answer, retrieval_result)
         timings["grounding_check_ms"] = (time.time() - t0) * 1000
-        
+
         if not grounded:
             # Grounding check failed post-hoc - override to a safe refusal
             # rather than returning a potentially hallucinated answer.
             generated.status = AnswerStatus.NO_ANSWER
-            generated.answer = "माफ़ कीजिए, मुझे इस सवाल का भरोसेमंद जवाब नहीं मिला।"
+            generated.answer = (
+                "Sorry, I could not find a reliable answer to this question in the provided context."
+                if language == "en"
+                else "माफ़ कीजिए, मुझे इस सवाल का भरोसेमंद जवाब नहीं मिला।"
+            )
 
     timings["total_ms"] = (time.time() - t_start) * 1000
 

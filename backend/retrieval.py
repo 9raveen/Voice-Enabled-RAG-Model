@@ -9,7 +9,10 @@ from qdrant_client import QdrantClient
 from schemas import RetrievalResult, RetrievedChunk
 
 QDRANT_URL = "http://localhost:6333"
-COLLECTION_NAME = "voice_rag_corpus"
+COLLECTIONS = {
+    "hi": "voice_rag_corpus",
+    "en": "voice_rag_corpus_en",
+}
 MODEL_NAME = "intfloat/multilingual-e5-large"
 TOP_K = 5
 CONFIDENCE_THRESHOLD = 0.75  # tuned from Phase 4 score distributions
@@ -33,7 +36,8 @@ def _get_client():
     return _client
 
 
-def retrieve(query: str, top_k: int = TOP_K) -> RetrievalResult:
+def retrieve(query: str, language: str = "hi", top_k: int = TOP_K) -> RetrievalResult:
+    collection_name = COLLECTIONS.get(language, COLLECTIONS["hi"])
     try:
         model = _get_model()
         client = _get_client()
@@ -41,7 +45,7 @@ def retrieve(query: str, top_k: int = TOP_K) -> RetrievalResult:
         query_vec = model.encode(["query: " + query], normalize_embeddings=True)[0]
 
         results = client.query_points(
-            collection_name=COLLECTION_NAME,
+            collection_name=collection_name,
             query=query_vec.tolist(),
             limit=top_k,
         )

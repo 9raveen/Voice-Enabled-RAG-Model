@@ -1,9 +1,6 @@
 """
-Phase 3, Step 2 — Full offline indexing pipeline.
-corpus.jsonl -> Strategy D chunking -> embed (multilingual-e5-large) -> Qdrant
-
-This is the OFFLINE pipeline. Run once; the online query pipeline
-(Phase 4+) reads from the persisted Qdrant collection this creates.
+Embed and index the English corpus into its own Qdrant collection,
+using the same Strategy D chunking approach as Hindi.
 """
 
 import json
@@ -14,11 +11,11 @@ from qdrant_client.models import VectorParams, Distance, PointStruct
 
 from chunking_stratergies import strategy_d_adaptive
 
-CORPUS_PATH = "data/corpus.jsonl"
-EVAL_PATH = "data/eval_queries.jsonl"
+CORPUS_PATH = "data/corpus_en.jsonl"
+EVAL_PATH = "data/eval_queries_en.jsonl"
 MODEL_NAME = "intfloat/multilingual-e5-large"
 QDRANT_URL = "http://localhost:6333"
-COLLECTION_NAME = "voice_rag_corpus"
+COLLECTION_NAME = "voice_rag_corpus_en"
 BATCH_SIZE = 128
 
 
@@ -45,20 +42,19 @@ def build_passage_metadata():
 
 
 def main():
-    print("Loading corpus and metadata...")
+    print("Loading English corpus and metadata...")
     corpus = load_corpus()
     passage_meta = build_passage_metadata()
 
-    print("Running Strategy D (adaptive) chunking...")
+    print("Running Strategy D chunking...")
     chunks = strategy_d_adaptive(corpus, passage_meta, threshold=800)
     print(f"Total chunks to index: {len(chunks)}")
 
-    print(f"Loading embedding model: {MODEL_NAME}...")
+    print(f"Loading embedding model {MODEL_NAME}...")
     model = SentenceTransformer(MODEL_NAME, device="cuda")
-    model.half()  # FP16 — roughly 2x faster on GPU, negligible quality loss for retrieval
-    print(f"Model device: {model.device}")
+    model.half()
 
-    print(f"Initializing persistent Qdrant at {QDRANT_URL}...")
+    print(f"Connecting to Qdrant at {QDRANT_URL}...")
     client = QdrantClient(url=QDRANT_URL)
 
     if client.collection_exists(COLLECTION_NAME):
@@ -69,7 +65,7 @@ def main():
         vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
     )
 
-    print(f"Embedding and indexing {len(chunks)} chunks in batches of {BATCH_SIZE}...")
+    print(f"Embedding and indexing {len(chunks)} chunks...")
     start = time.time()
 
     for i in range(0, len(chunks), BATCH_SIZE):

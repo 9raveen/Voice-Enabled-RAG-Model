@@ -46,16 +46,28 @@ def check_unsafe_content(query: str) -> tuple[bool, str | None]:
     return True, None
 
 
-def rejection_response(query: str, reason: str) -> GeneratedAnswer:
-    messages = {
+def rejection_response(query: str, reason: str, language: str = "hi") -> GeneratedAnswer:
+    messages_hi = {
         "empty_input": "कृपया एक वैध प्रश्न पूछें।",
         "too_short": "कृपया अपना प्रश्न अधिक स्पष्ट रूप से पूछें।",
         "too_long": "कृपया अपना प्रश्न संक्षेप में पूछें।",
         "unsafe_content_detected": "माफ़ कीजिए, मैं इस तरह के प्रश्न का उत्तर नहीं दे सकता।",
     }
+    messages_en = {
+        "empty_input": "Please provide a valid question.",
+        "too_short": "Please ask your question more clearly.",
+        "too_long": "Please keep your question concise.",
+        "unsafe_content_detected": "Sorry, I cannot answer this type of question.",
+    }
+    msgs = messages_en if language == "en" else messages_hi
+    default_msg = (
+        "Sorry, this question could not be processed."
+        if language == "en"
+        else "क्षमा करें, इस प्रश्न को संसाधित नहीं किया जा सका।"
+    )
     return GeneratedAnswer(
         status=AnswerStatus.NO_ANSWER,
-        answer=messages.get(reason, "क्षमा करें, इस प्रश्न को संसाधित नहीं किया जा सका।"),
+        answer=msgs.get(reason, default_msg),
         source_chunk_ids=[],
         error_message=f"Rejected at pre-check: {reason}",
     )

@@ -19,32 +19,55 @@ MAX_RETRIES = 2
 TIMEOUT_SECONDS = 8
 CONFIDENCE_THRESHOLD = 0.5  # tune later once we have more query data
 
-SYSTEM_PROMPT = (
-    "आप एक सहायक हैं जो केवल दिए गए संदर्भ के आधार पर हिंदी में जवाब देते हैं। "
-    "यदि संदर्भ में उत्तर नहीं है, तो स्पष्ट रूप से कहें कि जानकारी उपलब्ध नहीं है। "
-    "संदर्भ के बाहर की जानकारी का उपयोग न करें।"
-)
+SYSTEM_PROMPTS = {
+    "hi": (
+        "आप एक सहायक हैं जो केवल दिए गए संदर्भ के आधार पर हिंदी में जवाब देते हैं। "
+        "यदि संदर्भ में उत्तर नहीं है, तो स्पष्ट रूप से कहें कि जानकारी उपलब्ध नहीं है। "
+        "संदर्भ के बाहर की जानकारी का उपयोग न करें।"
+    ),
+    "en": (
+        "You are an assistant that answers strictly in English based ONLY on the provided context. "
+        "Do not use any external knowledge. If the context does not contain the answer, "
+        "clearly state in English that the information is not available in the context. "
+        "Always respond in clear, grammatically correct English."
+    ),
+}
 
 
-def build_prompt(retrieval: RetrievalResult) -> str:
+def build_prompt(retrieval: RetrievalResult, language: str = "hi") -> str:
     context_blocks = []
     for i, chunk in enumerate(retrieval.chunks, start=1):
         context_blocks.append(f"[{i}] {chunk.text}")
     context = "\n\n".join(context_blocks)
-    return f"संदर्भ:\n{context}\n\nप्रश्न: {retrieval.query}"
+    if language == "en":
+        return (
+            f"Context:\n{context}\n\n"
+            f"Question: {retrieval.query}\n\n"
+            f"Instruction: Answer the question in English using only the context above."
+        )
+    return (
+        f"संदर्भ:\n{context}\n\n"
+        f"प्रश्न: {retrieval.query}\n\n"
+        f"निर्देश: केवल ऊपर दिए गए संदर्भ के आधार पर हिंदी में उत्तर दें।"
+    )
 
-
-def generate_answer(retrieval: RetrievalResult) -> GeneratedAnswer:
+def generate_answer(retrieval: RetrievalResult, language: str = "hi") -> GeneratedAnswer:
+    system_prompt = SYSTEM_PROMPTS.get(language, SYSTEM_PROMPTS["hi"])
     # Guardrail stub: if retrieval wasn't confident, don't even call the LLM.
     # Full guardrail logic comes in Phase 6 — this is the harness's hook point.
     if not retrieval.confident or not retrieval.chunks:
+        no_ans = (
+            "Sorry, I could not find a reliable answer to this question in the provided context."
+            if language == "en"
+            else "माफ़ कीजिए, मुझे इस सवाल का भरोसेमंद जवाब नहीं मिला।"
+        )
         return GeneratedAnswer(
             status=AnswerStatus.NO_ANSWER,
-            answer="माफ़ कीजिए, मुझे इस सवाल का भरोसेमंद जवाब नहीं मिला।",
+            answer=no_ans,
             source_chunk_ids=[],
         )
 
-    prompt = build_prompt(retrieval)
+    prompt = build_prompt(retrieval, language=language)
 
     last_error = None
     for attempt in range(1, MAX_RETRIES + 2):  # initial try + retries
@@ -55,7 +78,7 @@ def generate_answer(retrieval: RetrievalResult) -> GeneratedAnswer:
                 reasoning_effort="low",
                 timeout=TIMEOUT_SECONDS,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
             )

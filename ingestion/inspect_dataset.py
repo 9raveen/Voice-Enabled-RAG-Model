@@ -12,8 +12,6 @@ import statistics
 REPO_ID = "ai4bharat/MSMARCO-XI"
 FILENAME = "validation/hinval.parquet"
 SAMPLE_SIZE = 500
-NUM_QUERIES_SAMPLE = 4000   # subsample size, adjust if needed
-RANDOM_SEED = 42
 
 
 def inspect():

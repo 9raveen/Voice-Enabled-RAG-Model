@@ -1,0 +1,1322 @@
+<!doctype html>
+<html lang="hi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice RAG सहायक — MSMARCO X1</title>
+    
+    <!-- Google Fonts for Luxury Aesthetic, English & Hindi Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+Devanagari:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg-deep: #050912;
+        --bg-surface: #0e1726;
+        --bg-card: #0f192b;
+        --bg-input: #101a2d;
+        --border-subtle: rgba(255, 255, 255, 0.07);
+        --border-gold: rgba(229, 175, 86, 0.3);
+        --gold-primary: #e5af56;
+        --gold-light: #fbe3b5;
+        --gold-dark: #c48227;
+        --gold-btn: #b97628;
+        --gold-btn-hover: #cf8c33;
+        --text-primary: #f1f5f9;
+        --text-secondary: #8294a8;
+        --text-muted: #57687d;
+        --text-placeholder: #506175;
+        --accent-glow: rgba(229, 175, 86, 0.12);
+        --badge-bg: rgba(14, 23, 38, 0.9);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", "Noto Serif Devanagari", sans-serif;
+        background-color: var(--bg-deep);
+        background-image: 
+          radial-gradient(ellipse 65% 45% at 50% 12%, rgba(20, 37, 65, 0.45) 0%, transparent 80%),
+          radial-gradient(ellipse 40% 30% at 50% 8%, rgba(229, 175, 86, 0.07) 0%, transparent 60%),
+          linear-gradient(180deg, #070d18 0%, #050912 100%);
+        color: var(--text-primary);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 36px 20px 32px;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Main Centered Container */
+      .app-wrapper {
+        width: 100%;
+        max-width: 760px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 2;
+      }
+
+      /* Top Bar: Badge & Language Selector */
+      .top-nav-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+
+      /* Top Pill Badge */
+      .top-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--badge-bg);
+        border: 1px solid rgba(229, 175, 86, 0.28);
+        border-radius: 9999px;
+        padding: 6px 18px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: #dfa44e;
+        text-transform: uppercase;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(8px);
+        transition: all 0.25s ease;
+      }
+      .top-badge:hover {
+        border-color: rgba(229, 175, 86, 0.5);
+        box-shadow: 0 0 15px rgba(229, 175, 86, 0.15);
+      }
+      .top-badge svg {
+        width: 13px;
+        height: 13px;
+        stroke: #dfa44e;
+        opacity: 0.9;
+      }
+
+      /* Language Selector Component */
+      .lang-switch-wrapper {
+        position: absolute;
+        right: 0;
+        display: flex;
+        align-items: center;
+        background: rgba(14, 23, 38, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 9999px;
+        padding: 3px;
+        gap: 2px;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+      }
+      .lang-btn {
+        background: transparent;
+        border: none;
+        border-radius: 9999px;
+        padding: 4px 12px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .lang-btn:hover {
+        color: #e2ecf8;
+      }
+      .lang-btn.active {
+        background: linear-gradient(135deg, #c78631 0%, #b27224 100%);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(179, 115, 37, 0.4);
+      }
+
+      /* Header Titles */
+      .header-section {
+        text-align: center;
+        margin-bottom: 36px;
+      }
+
+      .main-title {
+        font-family: "Cinzel", "Noto Serif Devanagari", serif;
+        font-size: 2.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        line-height: 1.2;
+        background: linear-gradient(180deg, #fff2d6 0%, #e5af56 45%, #c27e24 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 35px rgba(229, 175, 86, 0.25);
+        margin-bottom: 12px;
+      }
+
+      .subtitle {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        font-weight: 400;
+        letter-spacing: 0.2px;
+      }
+      .subtitle .danda {
+        color: #e07050;
+      }
+
+      /* Input Card Container */
+      .search-card {
+        width: 100%;
+        background: var(--bg-input);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        padding: 8px 10px 8px 22px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        position: relative;
+      }
+      .search-card:focus-within {
+        border-color: rgba(229, 175, 86, 0.35);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(229, 175, 86, 0.08);
+      }
+
+      .search-input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-primary);
+        font-size: 1.02rem;
+        font-family: "Plus Jakarta Sans", "Noto Serif Devanagari", sans-serif;
+        padding: 12px 0;
+      }
+      .search-input::placeholder {
+        color: var(--text-placeholder);
+        font-size: 0.98rem;
+      }
+
+      .action-btns-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      /* Circular Buttons */
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+      }
+
+      .btn-mic {
+        background: #172439;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #8da1ba;
+      }
+      .btn-mic:hover {
+        background: #1e304c;
+        color: #cad8ea;
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.04);
+      }
+      .btn-mic.recording {
+        background: #8b1818;
+        border-color: #ef4444;
+        color: #ffffff;
+        animation: mic-pulse 1.3s infinite;
+      }
+
+      @keyframes mic-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+          transform: scale(1.05);
+        }
+        50% {
+          box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+          transform: scale(1.08);
+        }
+      }
+
+      .btn-send {
+        background: linear-gradient(135deg, #c78631 0%, #b27224 100%);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #ffffff;
+        box-shadow: 0 4px 12px rgba(179, 115, 37, 0.3);
+      }
+      .btn-send:hover {
+        background: linear-gradient(135deg, #d8963e 0%, #c4802e 100%);
+        box-shadow: 0 4px 18px rgba(179, 115, 37, 0.45);
+        transform: scale(1.04);
+      }
+      .btn-send:active {
+        transform: scale(0.96);
+      }
+      .btn-send:disabled, .btn-mic:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+      }
+
+      .icon-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+      .btn-mic svg {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+      }
+
+      /* Preset Suggestion Chips */
+      .chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+        margin-bottom: 24px;
+        width: 100%;
+      }
+
+      .chip-btn {
+        background: #0d1626;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 9999px;
+        padding: 7px 18px;
+        color: #8496ad;
+        font-size: 0.82rem;
+        font-family: "Noto Serif Devanagari", "Plus Jakarta Sans", sans-serif;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+      .chip-btn:hover {
+        background: #142036;
+        border-color: rgba(229, 175, 86, 0.35);
+        color: #e2ecf9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      }
+
+      /* Latency / Stats Cards Grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+
+      .stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 14px 8px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: border-color 0.2s ease, transform 0.2s ease;
+      }
+      .stat-card:hover {
+        border-color: rgba(229, 175, 86, 0.2);
+        transform: translateY(-2px);
+      }
+
+      .stat-label {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: #63768d;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+
+      .stat-value {
+        font-family: "JetBrains Mono", "Cinzel", monospace;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--gold-primary);
+        letter-spacing: 0.5px;
+      }
+
+      /* Response & Status Container */
+      .response-card {
+        width: 100%;
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: 14px;
+        padding: 24px;
+        min-height: 96px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        transition: all 0.3s ease;
+      }
+
+      .empty-state-text {
+        text-align: center;
+        color: #5c6f85;
+        font-size: 0.92rem;
+        font-family: "Noto Serif Devanagari", "Plus Jakarta Sans", sans-serif;
+      }
+
+      /* Live Answer State */
+      .answer-container {
+        display: none;
+        flex-direction: column;
+        gap: 14px;
+        width: 100%;
+      }
+      .answer-container.visible {
+        display: flex;
+      }
+
+      .query-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .query-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.86rem;
+        color: #9ab0c8;
+        font-style: italic;
+      }
+
+      .status-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+      }
+      .status-answered {
+        background: rgba(22, 101, 52, 0.35);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #86efac;
+      }
+      .status-no_answer {
+        background: rgba(133, 77, 14, 0.35);
+        border: 1px solid rgba(234, 179, 8, 0.3);
+        color: #fde047;
+      }
+      .status-error {
+        background: rgba(153, 27, 27, 0.35);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+      }
+
+      .answer-body {
+        color: #f1f5f9;
+        font-size: 1.05rem;
+        line-height: 1.7;
+        font-family: "Noto Serif Devanagari", "Plus Jakarta Sans", sans-serif;
+      }
+
+      /* Control Tools below answer */
+      .answer-tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 6px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .tool-btn {
+        background: #152238;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 5px 12px;
+        font-size: 0.78rem;
+        color: #8fa2ba;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
+      .tool-btn:hover {
+        background: #1b2c48;
+        color: #e2edf9;
+      }
+
+      .latency-breakdown {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        color: #63768d;
+      }
+      .latency-tag {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 2px 7px;
+        border-radius: 4px;
+      }
+      .latency-tag b {
+        color: #d19a42;
+      }
+
+      /* Retrieved sources accordion */
+      .sources-toggle-btn {
+        background: none;
+        border: none;
+        color: #6d8199;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 0;
+        margin-top: 4px;
+      }
+      .sources-toggle-btn:hover {
+        color: #a3b8d1;
+      }
+      .sources-list {
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .sources-list.visible {
+        display: flex;
+      }
+      .source-item {
+        background: rgba(8, 14, 24, 0.6);
+        border-left: 2px solid var(--gold-primary);
+        padding: 10px 14px;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.85rem;
+        color: #9db1c7;
+        line-height: 1.5;
+      }
+
+      /* Loading State Indicator */
+      .loading-state {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 12px 0;
+      }
+      .loading-state.visible {
+        display: flex;
+      }
+      .spinner {
+        width: 28px;
+        height: 28px;
+        border: 2px solid rgba(229, 175, 86, 0.15);
+        border-top-color: var(--gold-primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .loading-text {
+        font-size: 0.88rem;
+        color: #8ca0b8;
+        font-family: "Noto Serif Devanagari", "Plus Jakarta Sans", sans-serif;
+      }
+
+      /* Footer Section */
+      .footer-section {
+        margin-top: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
+        z-index: 2;
+      }
+
+      .pipeline-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: none;
+        color: #8c9eb5;
+        font-size: 0.84rem;
+        font-family: "Noto Serif Devanagari", "Plus Jakarta Sans", sans-serif;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: color 0.2s ease;
+      }
+      .pipeline-btn:hover {
+        color: #d8a554;
+      }
+      .pipeline-btn svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+      }
+
+      .footer-subtext {
+        font-size: 0.74rem;
+        color: #4b5d72;
+        letter-spacing: 0.3px;
+      }
+
+      /* Bottom Right Tag */
+      .hashtag-tag {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #091220;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 0.74rem;
+        font-family: "JetBrains Mono", monospace;
+        color: #6f849c;
+        text-decoration: none;
+        letter-spacing: 0.3px;
+        transition: all 0.2s ease;
+        z-index: 10;
+      }
+      .hashtag-tag:hover {
+        border-color: rgba(229, 175, 86, 0.4);
+        color: var(--gold-primary);
+        box-shadow: 0 0 12px rgba(229, 175, 86, 0.15);
+      }
+
+      /* Responsive styling */
+      @media (max-width: 640px) {
+        .top-nav-bar {
+          flex-direction: column;
+          gap: 12px;
+        }
+        .lang-switch-wrapper {
+          position: static;
+        }
+        .main-title {
+          font-size: 2.1rem;
+        }
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .hashtag-tag {
+          position: static;
+          margin-top: 16px;
+        }
+        .chips-row {
+          gap: 6px;
+        }
+        .chip-btn {
+          font-size: 0.76rem;
+          padding: 6px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-wrapper">
+      
+      <!-- Top Navigation & Language Selector -->
+      <div class="top-nav-bar">
+        <!-- Top Pill Badge -->
+        <div class="top-badge" id="modelBadge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+          <span id="badgeText">MSMARCO X1 · हिंदी</span>
+        </div>
+
+        <!-- Language Switcher -->
+        <div class="lang-switch-wrapper">
+          <button class="lang-btn active" id="langBtnHi" data-lang="hi">
+            <span>🇮🇳</span> हिंदी
+          </button>
+          <button class="lang-btn" id="langBtnEn" data-lang="en">
+            <span>🌐</span> English
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Header Section -->
+      <div class="header-section">
+        <h1 class="main-title" id="mainTitle">Voice RAG सहायक</h1>
+        <p class="subtitle" id="mainSubtitle">
+          बोलकर या लिखकर प्रश्न पूछें — उत्तर केवल पुनःप्राप्त संदर्भ से<span class="danda">।</span>
+        </p>
+      </div>
+
+      <!-- Search Input Container -->
+      <div class="search-card" id="searchCard">
+        <input
+          type="text"
+          id="textInput"
+          class="search-input"
+          placeholder="अपना सवाल यहाँ लिखें..."
+          autocomplete="off"
+        />
+        <div class="action-btns-group">
+          <!-- Mic Button -->
+          <button
+            class="icon-btn btn-mic"
+            id="micBtn"
+            title="बोलकर पूछें (Click to record audio)"
+            aria-label="Microphone"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+            </svg>
+          </button>
+
+          <!-- Send Button -->
+          <button
+            class="icon-btn btn-send"
+            id="sendBtn"
+            title="पूछें (Send query)"
+            aria-label="Send"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Preset Suggestion Chips -->
+      <div class="chips-row" id="chipsRow">
+        <button class="chip-btn" id="chip0">
+          महात्मा गांधी का जन्मदिन कब है?
+        </button>
+        <button class="chip-btn" id="chip1">
+          भारत की सबसे लंबी नदी कौन सी है?
+        </button>
+        <button class="chip-btn" id="chip2">
+          फोटोसिंथेसिस क्या होता है?
+        </button>
+        <button class="chip-btn" id="chip3">
+          ताजमहल किसने बनवाया था?
+        </button>
+      </div>
+
+      <!-- Latency & Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">P50</span>
+          <span class="stat-value" id="valP50">0ms</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">P70</span>
+          <span class="stat-value" id="valP70">0ms</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">P100</span>
+          <span class="stat-value" id="valP100">0ms</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label" id="labelQueryCount">प्रश्न</span>
+          <span class="stat-value" id="valQueryCount">0</span>
+        </div>
+      </div>
+
+      <!-- Response Card -->
+      <div class="response-card" id="responseContainer">
+        <!-- Default Empty State -->
+        <div class="empty-state-text" id="emptyState">
+          कोई प्रश्न अभी तक नहीं। माइक दबाएँ और हिंदी में पूछें।
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-state" id="loadingState">
+          <div class="spinner"></div>
+          <span class="loading-text" id="loadingText">RAG पाइपलाइन से उत्तर खोजा जा रहा है...</span>
+        </div>
+
+        <!-- Answer / Results Area -->
+        <div class="answer-container" id="answerContainer">
+          <div class="query-header-row">
+            <span class="query-pill" id="displayQuery">
+              <!-- e.g. 🎙️ "..." -->
+            </span>
+            <span class="status-tag status-answered" id="statusBadge">
+              उत्तरित
+            </span>
+          </div>
+
+          <div class="answer-body" id="answerText">
+            <!-- Answer text goes here -->
+          </div>
+
+          <!-- Retrieved Sources Toggle & Content -->
+          <div id="sourcesWrapper" style="display: none;">
+            <button class="sources-toggle-btn" id="toggleSourcesBtn">
+              <span id="sourcesBtnText">▼ पुनःप्राप्त संदर्भ (Sources)</span>
+            </button>
+            <div class="sources-list" id="sourcesList"></div>
+          </div>
+
+          <!-- Bottom Tools & Timing -->
+          <div class="answer-tools">
+            <div style="display: flex; gap: 8px;">
+              <button class="tool-btn" id="speakBtn" title="उत्तर सुनें">
+                <span id="speakBtnText">🔊 सुनें</span>
+              </button>
+              <button class="tool-btn" id="copyBtn" title="उत्तर कॉपी करें">
+                <span id="copyBtnText">📋 कॉपी</span>
+              </button>
+            </div>
+            <div class="latency-breakdown" id="latencyBreakdown">
+              <!-- Stage latencies breakdown -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Section -->
+      <div class="footer-section">
+        <button class="pipeline-btn" id="pipelineStatusBtn" title="FastAPI Backend: http://localhost:8000">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+            <rect x="9" y="9" width="6" height="6"></rect>
+            <line x1="9" y1="1" x2="9" y2="4"></line>
+            <line x1="15" y1="1" x2="15" y2="4"></line>
+            <line x1="9" y1="20" x2="9" y2="23"></line>
+            <line x1="15" y1="20" x2="15" y2="23"></line>
+            <line x1="20" y1="9" x2="23" y2="9"></line>
+            <line x1="20" y1="14" x2="23" y2="14"></line>
+            <line x1="1" y1="9" x2="4" y2="9"></line>
+            <line x1="1" y1="14" x2="4" y2="14"></line>
+          </svg>
+          <span id="footerPipelineText">पाइपलाइन एंडपॉइंट</span>
+        </button>
+        <span class="footer-subtext">Voice — STT — Chunking/Retrieval — Guardrailed Generation</span>
+      </div>
+
+    </div>
+
+    <!-- Bottom Right Tag -->
+    <a href="#RAGInGoa" class="hashtag-tag">#RAGInGoa</a>
+
+    <script>
+      const API_BASE = "http://localhost:8000";
+
+      // Multi-Language Translation Dictionary
+      const i18n = {
+        hi: {
+          pageTitle: "Voice RAG सहायक — MSMARCO X1",
+          badge: "MSMARCO X1 · हिंदी",
+          title: "Voice RAG सहायक",
+          subtitle: 'बोलकर या लिखकर प्रश्न पूछें — उत्तर केवल पुनःप्राप्त संदर्भ से<span class="danda">।</span>',
+          placeholder: "अपना सवाल यहाँ लिखें...",
+          micTitle: "बोलकर पूछें (Click to record audio)",
+          sendTitle: "पूछें (Send query)",
+          chips: [
+            "महात्मा गांधी का जन्मदिन कब है?",
+            "भारत की सबसे लंबी नदी कौन सी है?",
+            "फोटोसिंथेसिस क्या होता है?",
+            "ताजमहल किसने बनवाया था?"
+          ],
+          queryCountLabel: "प्रश्न",
+          emptyState: "कोई प्रश्न अभी तक नहीं। माइक दबाएँ और हिंदी में पूछें।",
+          loadingSearch: "RAG पाइपलाइन से उत्तर खोजा जा रहा है...",
+          loadingListening: "आपकी आवाज़ सुनी जा रही है... (बोलना समाप्त करके माइक बटन दबाएँ)",
+          loadingProcessingVoice: "आवाज़ को प्रोसेस कर उत्तर खोजा जा रहा है (Sarvam STT + RAG)...",
+          statusAnswered: "उत्तरित",
+          statusNoAnswer: "संदर्भ अपर्याप्त",
+          statusError: "त्रुटि",
+          noAnswerFallback: "कोई उत्तर प्राप्त नहीं हुआ।",
+          serverError: "सर्वर से संपर्क करने में समस्या हुई। कृपया सुनिश्चित करें कि बैकएंड (FastAPI) चालू है।",
+          voiceError: "आवाज़ भेजने अथवा समझने में समस्या हुई। कृपया पुनः प्रयास करें।",
+          micErrorAlert: "माइक्रोफ़ोन एक्सेस उपलब्ध नहीं है। कृपया ब्राउज़र अनुमतियों की जाँच करें।",
+          sourcesShow: "▼ पुनःप्राप्त संदर्भ (Sources)",
+          sourcesHide: "▲ संदर्भ छिपाएँ (Hide Sources)",
+          sourcePrefix: "संदर्भ",
+          speakBtn: "🔊 सुनें",
+          copyBtn: "📋 कॉपी",
+          copiedFeedback: "✓ कॉपीड!",
+          pipelineBtn: "पाइपलाइन एंडपॉइंट",
+          backendActive: "✓ RAG बैकएंड सक्रिय और कनेक्टेड है (http://localhost:8000 - status: OK)",
+          backendOffline: "⚠️ बैकएंड से कनेक्ट नहीं हो सका (http://localhost:8000)। कृपया बैकएंड सर्वर शुरू करें।",
+          totalLabel: "कुल",
+          ttsLang: "hi-IN"
+        },
+        en: {
+          pageTitle: "Voice RAG Assistant — MSMARCO X1",
+          badge: "MSMARCO X1 · English",
+          title: "Voice RAG Assistant",
+          subtitle: "Ask via voice or text — answers strictly grounded in retrieved context.",
+          placeholder: "Ask your question here...",
+          micTitle: "Voice Search (Click to record audio)",
+          sendTitle: "Send Query",
+          chips: [
+            "When is Mahatma Gandhi's birthday?",
+            "Which is the longest river in India?",
+            "What is photosynthesis?",
+            "Who built the Taj Mahal?"
+          ],
+          queryCountLabel: "QUERIES",
+          emptyState: "No queries yet. Tap the mic or type to ask.",
+          loadingSearch: "Searching answer via RAG pipeline...",
+          loadingListening: "Listening to your voice... (Click mic to stop)",
+          loadingProcessingVoice: "Processing audio & retrieving answer (STT + RAG)...",
+          statusAnswered: "Answered",
+          statusNoAnswer: "No Context",
+          statusError: "Error",
+          noAnswerFallback: "No answer found.",
+          serverError: "Failed to connect to server. Please ensure the backend (FastAPI) is running.",
+          voiceError: "Error processing voice audio. Please try again.",
+          micErrorAlert: "Microphone access denied. Please check browser permissions.",
+          sourcesShow: "▼ Retrieved Sources",
+          sourcesHide: "▲ Hide Sources",
+          sourcePrefix: "Source",
+          speakBtn: "🔊 Listen",
+          copyBtn: "📋 Copy",
+          copiedFeedback: "✓ Copied!",
+          pipelineBtn: "Pipeline Endpoint",
+          backendActive: "✓ RAG Backend is active and connected (http://localhost:8000 - status: OK)",
+          backendOffline: "⚠️ Could not connect to backend (http://localhost:8000). Please start the backend server.",
+          totalLabel: "Total",
+          ttsLang: "en-US"
+        }
+      };
+
+      // Current Language State
+      let currentLang = localStorage.getItem("voice_rag_lang") || "hi";
+
+      // DOM Elements
+      const langBtnHi = document.getElementById("langBtnHi");
+      const langBtnEn = document.getElementById("langBtnEn");
+      const badgeText = document.getElementById("badgeText");
+      const mainTitle = document.getElementById("mainTitle");
+      const mainSubtitle = document.getElementById("mainSubtitle");
+      const textInput = document.getElementById("textInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const micBtn = document.getElementById("micBtn");
+      const emptyState = document.getElementById("emptyState");
+      const loadingState = document.getElementById("loadingState");
+      const loadingText = document.getElementById("loadingText");
+      const answerContainer = document.getElementById("answerContainer");
+      const displayQuery = document.getElementById("displayQuery");
+      const statusBadge = document.getElementById("statusBadge");
+      const answerText = document.getElementById("answerText");
+      const latencyBreakdown = document.getElementById("latencyBreakdown");
+      const sourcesWrapper = document.getElementById("sourcesWrapper");
+      const sourcesList = document.getElementById("sourcesList");
+      const toggleSourcesBtn = document.getElementById("toggleSourcesBtn");
+      const sourcesBtnText = document.getElementById("sourcesBtnText");
+      const speakBtn = document.getElementById("speakBtn");
+      const speakBtnText = document.getElementById("speakBtnText");
+      const copyBtn = document.getElementById("copyBtn");
+      const copyBtnText = document.getElementById("copyBtnText");
+      const pipelineStatusBtn = document.getElementById("pipelineStatusBtn");
+      const footerPipelineText = document.getElementById("footerPipelineText");
+      const labelQueryCount = document.getElementById("labelQueryCount");
+
+      // Stats Elements
+      const valP50 = document.getElementById("valP50");
+      const valP70 = document.getElementById("valP70");
+      const valP100 = document.getElementById("valP100");
+      const valQueryCount = document.getElementById("valQueryCount");
+
+      // Metrics State Tracking
+      const queryLatencies = [];
+      let lastResponseData = null;
+      let lastSourceLabel = null;
+      let lastQueryStr = null;
+
+      function setLanguage(lang) {
+        currentLang = lang;
+        localStorage.setItem("voice_rag_lang", lang);
+        document.documentElement.lang = lang;
+
+        const t = i18n[lang];
+
+        // Update Toggle Buttons
+        if (lang === "hi") {
+          langBtnHi.classList.add("active");
+          langBtnEn.classList.remove("active");
+        } else {
+          langBtnEn.classList.add("active");
+          langBtnHi.classList.remove("active");
+        }
+
+        // Update Static Text
+        document.title = t.pageTitle;
+        badgeText.textContent = t.badge;
+        mainTitle.textContent = t.title;
+        mainSubtitle.innerHTML = t.subtitle;
+        textInput.placeholder = t.placeholder;
+        micBtn.title = t.micTitle;
+        sendBtn.title = t.sendTitle;
+        labelQueryCount.textContent = t.queryCountLabel;
+        footerPipelineText.textContent = t.pipelineBtn;
+        speakBtnText.textContent = t.speakBtn;
+        copyBtnText.textContent = t.copyBtn;
+
+        // Update Preset Chips
+        t.chips.forEach((chipText, idx) => {
+          const chipEl = document.getElementById(`chip${idx}`);
+          if (chipEl) {
+            chipEl.textContent = chipText;
+            chipEl.setAttribute("data-query", chipText);
+          }
+        });
+
+        // Update Empty State if visible
+        if (emptyState.style.display !== "none") {
+          emptyState.textContent = t.emptyState;
+        }
+
+        // Update Sources Button Text
+        const isSourcesOpen = sourcesList.classList.contains("visible");
+        sourcesBtnText.textContent = isSourcesOpen ? t.sourcesHide : t.sourcesShow;
+
+        // Re-render status badge if answer is active
+        if (lastResponseData) {
+          renderResponse(lastResponseData, lastSourceLabel, lastQueryStr, false);
+        }
+      }
+
+      // Language Toggle Listeners
+      langBtnHi.addEventListener("click", () => setLanguage("hi"));
+      langBtnEn.addEventListener("click", () => setLanguage("en"));
+
+      function calculatePercentile(arr, p) {
+        if (arr.length === 0) return 0;
+        const sorted = [...arr].sort((a, b) => a - b);
+        const index = Math.ceil((p / 100) * sorted.length) - 1;
+        return sorted[Math.max(0, index)];
+      }
+
+      function updateStats(totalLatency) {
+        if (totalLatency && !isNaN(totalLatency)) {
+          queryLatencies.push(Math.round(totalLatency));
+        }
+        const count = queryLatencies.length;
+        valQueryCount.textContent = count;
+
+        if (count > 0) {
+          valP50.textContent = `${calculatePercentile(queryLatencies, 50)}ms`;
+          valP70.textContent = `${calculatePercentile(queryLatencies, 70)}ms`;
+          valP100.textContent = `${calculatePercentile(queryLatencies, 100)}ms`;
+        }
+      }
+
+      // UI State Helpers
+      function showLoading(customMsg = null) {
+        emptyState.style.display = "none";
+        answerContainer.classList.remove("visible");
+        loadingState.classList.add("visible");
+        loadingText.textContent = customMsg || i18n[currentLang].loadingSearch;
+        sendBtn.disabled = true;
+      }
+
+      function hideLoading() {
+        loadingState.classList.remove("visible");
+        sendBtn.disabled = false;
+      }
+
+      function renderResponse(data, sourceLabel, queryStr, recordStats = true) {
+        lastResponseData = data;
+        lastSourceLabel = sourceLabel;
+        lastQueryStr = queryStr;
+
+        hideLoading();
+        emptyState.style.display = "none";
+        answerContainer.classList.add("visible");
+
+        const t = i18n[currentLang];
+
+        // Set Query Transcript
+        const icon = sourceLabel === "voice" ? "🎙️" : "⌨️";
+        const queryText = queryStr || data.query || "";
+        displayQuery.textContent = `${icon} "${queryText}"`;
+
+        // Set Status Badge
+        const status = data.status || "answered";
+        statusBadge.className = "status-tag";
+        if (status === "answered") {
+          statusBadge.classList.add("status-answered");
+          statusBadge.textContent = t.statusAnswered;
+        } else if (status === "no_answer") {
+          statusBadge.classList.add("status-no_answer");
+          statusBadge.textContent = t.statusNoAnswer;
+        } else {
+          statusBadge.classList.add("status-error");
+          statusBadge.textContent = t.statusError;
+        }
+
+        // Set Answer Text
+        answerText.textContent = data.answer || t.noAnswerFallback;
+
+        // Latency details
+        const lat = data.latency_ms || {};
+        const total = lat.total_ms ? Math.round(lat.total_ms) : (lat.stt_ms || 0) + (lat.retrieval_ms || 0) + (lat.generation_ms || 0);
+        
+        let tagsHtml = "";
+        if (lat.stt_ms) tagsHtml += `<span class="latency-tag">STT: <b>${Math.round(lat.stt_ms)}ms</b></span>`;
+        if (lat.retrieval_ms) tagsHtml += `<span class="latency-tag">Retrieve: <b>${Math.round(lat.retrieval_ms)}ms</b></span>`;
+        if (lat.generation_ms) tagsHtml += `<span class="latency-tag">Gen: <b>${Math.round(lat.generation_ms)}ms</b></span>`;
+        tagsHtml += `<span class="latency-tag">${t.totalLabel}: <b>${total ? total + 'ms' : '?'}</b></span>`;
+        latencyBreakdown.innerHTML = tagsHtml;
+
+        // Sources list
+        if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
+          sourcesWrapper.style.display = "block";
+          sourcesList.innerHTML = data.sources
+            .map((src, i) => `<div class="source-item"><b>${t.sourcePrefix} ${i + 1}:</b> ${src}</div>`)
+            .join("");
+        } else {
+          sourcesWrapper.style.display = "none";
+          sourcesList.innerHTML = "";
+        }
+
+        // Update overall latency stats
+        if (recordStats && total) {
+          updateStats(total);
+        }
+      }
+
+      // Execute Text Query
+      async function executeTextQuery(query) {
+        if (!query || !query.trim()) return;
+        showLoading(i18n[currentLang].loadingSearch);
+        
+        try {
+          const res = await fetch(`${API_BASE}/ask/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: query.trim(), language: currentLang }),
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP error! Status: ${res.status}`);
+          }
+
+          const data = await res.json();
+          renderResponse(data, "text", query, true);
+        } catch (err) {
+          console.error("Text query error:", err);
+          renderResponse(
+            {
+              query: query,
+              status: "error",
+              answer: i18n[currentLang].serverError,
+              latency_ms: { total_ms: 0 },
+            },
+            "text",
+            query,
+            false
+          );
+        }
+      }
+
+      // Submit handlers
+      sendBtn.addEventListener("click", () => {
+        const q = textInput.value.trim();
+        if (q) executeTextQuery(q);
+      });
+
+      textInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const q = textInput.value.trim();
+          if (q) executeTextQuery(q);
+        }
+      });
+
+      // Preset Suggestion Chips Click
+      document.querySelectorAll(".chip-btn").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const q = chip.getAttribute("data-query") || chip.textContent.trim();
+          if (q) {
+            textInput.value = q;
+            executeTextQuery(q);
+          }
+        });
+      });
+
+      // Toggle Sources Accordion
+      toggleSourcesBtn.addEventListener("click", () => {
+        const isVisible = sourcesList.classList.toggle("visible");
+        const t = i18n[currentLang];
+        sourcesBtnText.textContent = isVisible ? t.sourcesHide : t.sourcesShow;
+      });
+
+      // Text-To-Speech (TTS)
+      speakBtn.addEventListener("click", () => {
+        const textToRead = answerText.textContent;
+        if (!textToRead || !("speechSynthesis" in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToRead);
+        utterance.lang = i18n[currentLang].ttsLang;
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+      });
+
+      // Copy Answer
+      copyBtn.addEventListener("click", async () => {
+        const textToCopy = answerText.textContent;
+        if (!textToCopy) return;
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+          const t = i18n[currentLang];
+          copyBtnText.textContent = t.copiedFeedback;
+          setTimeout(() => (copyBtnText.textContent = t.copyBtn), 2000);
+        } catch (e) {
+          console.error("Clipboard copy failed", e);
+        }
+      });
+
+      // Check backend status on click
+      pipelineStatusBtn.addEventListener("click", async () => {
+        const t = i18n[currentLang];
+        try {
+          const res = await fetch(`${API_BASE}/health`);
+          const d = await res.json();
+          if (d.status === "ok") {
+            alert(t.backendActive);
+          }
+        } catch (e) {
+          alert(t.backendOffline);
+        }
+      });
+
+      // --- Voice Recording Logic ---
+      let mediaRecorder = null;
+      let audioChunks = [];
+      let isRecording = false;
+
+      micBtn.addEventListener("click", async () => {
+        const t = i18n[currentLang];
+        if (!isRecording) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Choose supported mime type
+            let options = {};
+            if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+              options = { mimeType: "audio/webm;codecs=opus" };
+            } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+              options = { mimeType: "audio/webm" };
+            } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+              options = { mimeType: "audio/mp4" };
+            }
+
+            mediaRecorder = new MediaRecorder(stream, options);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+              if (e.data && e.data.size > 0) {
+                audioChunks.push(e.data);
+              }
+            };
+
+            mediaRecorder.onstop = async () => {
+              const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+              await submitVoiceQuery(audioBlob);
+              stream.getTracks().forEach((track) => track.stop());
+            };
+
+            mediaRecorder.start(250);
+            isRecording = true;
+            micBtn.classList.add("recording");
+            showLoading(t.loadingListening);
+          } catch (err) {
+            console.error("Microphone access error:", err);
+            alert(t.micErrorAlert);
+          }
+        } else {
+          // Stop recording
+          if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+          }
+          isRecording = false;
+          micBtn.classList.remove("recording");
+        }
+      });
+
+      async function submitVoiceQuery(audioBlob) {
+        const t = i18n[currentLang];
+        showLoading(t.loadingProcessingVoice);
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "recording.webm");
+        formData.append("language", currentLang);
+
+        try {
+          const res = await fetch(`${API_BASE}/ask/voice`, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!res.ok) {
+            throw new Error(`Voice API HTTP error! Status: ${res.status}`);
+          }
+
+          const data = await res.json();
+          renderResponse(data, "voice", data.query || (currentLang === "hi" ? "आवाज़ प्रश्न" : "Voice Query"), true);
+        } catch (err) {
+          console.error("Voice query submission error:", err);
+          renderResponse(
+            {
+              query: currentLang === "hi" ? "आवाज़ इनपुट" : "Voice Input",
+              status: "error",
+              answer: t.voiceError,
+              latency_ms: { total_ms: 0 },
+            },
+            "voice",
+            currentLang === "hi" ? "आवाज़ इनपुट" : "Voice Input",
+            false
+          );
+        }
+      }
+
+      // Initialize UI with preferred language
+      setLanguage(currentLang);
+    </script>
+  </body>
+</html>
