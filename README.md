@@ -1,8 +1,6 @@
-# 🎙️ Voice-Enabled RAG — HH Goa 2026
+# 🎙️ Voice-Enabled RAG
 
 A voice-driven Retrieval-Augmented Generation system that answers Hindi questions by retrieving grounded context from the MSMARCO-XI corpus, with honest latency benchmarking, hallucination guardrails, and a real evaluation pipeline.
-
-Built for **HH Goa 2026 — Shortlisting Task 2**.
 
 ---
 
@@ -343,4 +341,4 @@ uvicorn main:app --reload --port 8000
 
 ---
 
-Built for **HH Goa 2026 Shortlisting Task 2**. #RAGInGoa
+Built by **Praveen**. #RAG
