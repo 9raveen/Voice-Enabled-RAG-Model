@@ -12,6 +12,29 @@ from schemas import PipelineResponse, AnswerStatus
 from guardrails import validate_input, check_unsafe_content, rejection_response, check_grounding
 from retrieval import retrieve
 from generation import generate_answer
+from stt import transcribe
+
+
+def run_pipeline_from_audio(audio_path: str) -> PipelineResponse:
+    """Voice entry point: STT -> text pipeline."""
+    timings = {}
+    transcript, stt_ms, stt_error = transcribe(audio_path)
+    timings["stt_ms"] = stt_ms
+
+    if stt_error or not transcript:
+        return PipelineResponse(
+            query="",
+            status=AnswerStatus.ERROR,
+            answer="माफ़ कीजिए, आवाज़ को समझने में समस्या हुई।",
+            sources=[],
+            latency_ms=timings,
+        )
+
+    result = run_pipeline(transcript)
+    # merge STT timing into the text pipeline's timing breakdown
+    result.latency_ms = {**timings, **result.latency_ms}
+    result.latency_ms["total_ms"] = stt_ms + result.latency_ms.get("total_ms", 0)
+    return result
 
 
 def run_pipeline(query: str) -> PipelineResponse:
@@ -57,7 +80,7 @@ def run_pipeline(query: str) -> PipelineResponse:
         t0 = time.time()
         grounded, grounding_score = check_grounding(generated.answer, retrieval_result)
         timings["grounding_check_ms"] = (time.time() - t0) * 1000
-
+        
         if not grounded:
             # Grounding check failed post-hoc - override to a safe refusal
             # rather than returning a potentially hallucinated answer.

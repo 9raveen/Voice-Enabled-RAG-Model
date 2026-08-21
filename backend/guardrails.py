@@ -81,16 +81,18 @@ def _get_reranker():
 
 
 def check_grounding(answer_text: str, retrieval: RetrievalResult) -> tuple[bool, float]:
-    """Returns (is_grounded, score). Uses the cross-encoder to directly
-    score how well the answer is supported by the retrieved context,
-    rather than comparing independent embeddings."""
+    """Returns (is_grounded, score). Scores the answer against each
+    retrieved chunk individually (matching how the cross-encoder was
+    trained on single pairs) and takes the best match, rather than
+    diluting the signal with one long concatenated context block."""
     if not answer_text or not retrieval.chunks:
         return False, 0.0
 
     reranker = _get_reranker()
 
-    context_text = " ".join(c.text for c in retrieval.chunks)
-    score = reranker.predict([[context_text, answer_text]])[0]
+    pairs = [[c.text, answer_text] for c in retrieval.chunks]
+    scores = reranker.predict(pairs)
+    best_score = float(max(scores))
 
-    is_grounded = score >= GROUNDING_THRESHOLD
-    return is_grounded, float(score)
+    is_grounded = best_score >= GROUNDING_THRESHOLD
+    return is_grounded, best_score
